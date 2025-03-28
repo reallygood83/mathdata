@@ -122,6 +122,13 @@ def get_google_sheets_service():
 def get_sheet_data(service, spreadsheet_id, range_name):
     """구글 스프레드시트에서 데이터를 가져옵니다."""
     try:
+        # 시트 이름에 특수 문자가 있는 경우 작은따옴표로 감싸기
+        if '!' in range_name:
+            sheet_name, cell_range = range_name.split('!', 1)
+            if ('.' in sheet_name or ' ' in sheet_name) and not (sheet_name.startswith("'") and sheet_name.endswith("'")):
+                sheet_name = f"'{sheet_name}'"
+            range_name = f"{sheet_name}!{cell_range}"
+        
         sheet = service.spreadsheets()
         result = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
         values = result.get('values', [])
@@ -168,8 +175,29 @@ def create_visualization(df, chart_type, student_name=None):
     if df is None:
         return None, "데이터를 찾을 수 없습니다."
     
+    # 한글 폰트 설정 (함수 내에서 다시 설정)
+    system = platform.system()
+    font_family = None
+    
+    if system == 'Windows':
+        font_family = 'Malgun Gothic'
+    elif system == 'Darwin':  # macOS
+        font_family = 'AppleGothic'
+    else:  # Linux 등
+        # 나눔고딕 폰트가 설치되어 있는지 확인
+        font_list = fm.findSystemFonts(fontpaths=None, fontext='ttf')
+        nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
+        if nanum_fonts:
+            font_family = 'NanumGothic'
+        else:
+            # Ubuntu의 경우 기본 한글 폰트
+            font_family = 'DejaVu Sans'
+    
     # 그래프 초기화
     plt.clf()
+    plt.figure(figsize=(12, 8), dpi=100)
+    plt.rcParams['font.family'] = font_family
+    plt.rcParams['axes.unicode_minus'] = False
     
     if chart_type == '학생별 설문 응답':
         if student_name is None:
@@ -179,24 +207,22 @@ def create_visualization(df, chart_type, student_name=None):
         if student_data.empty:
             return None, f"'{student_name}' 학생을 찾을 수 없습니다."
         
-        fig, ax = plt.subplots(figsize=(12, 6))
         survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
                        '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
         values = student_data[survey_items].iloc[0]
         
         plt.bar(survey_items, values)
-        plt.title(f'{student_name} 학생의 설문 응답')
-        plt.xticks(rotation=45, ha='right')
-        plt.ylabel('점수 (1-5)')
+        plt.title(f'{student_name} 학생의 설문 응답', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
+        plt.xticks(rotation=45, ha='right', fontsize=12)
+        plt.ylabel('점수 (1-5)', fontsize=12)
         plt.ylim(0, 5)
         
         # 자기 평가 정보 추가
         evaluation_text = f"\n수업 요약: {student_data['수업 요약'].iloc[0]}\n"
         evaluation_text += f"자기 평가: {student_data['자기 평가'].iloc[0]}"
-        plt.figtext(0.02, 0.02, evaluation_text, fontsize=8, wrap=True)
+        plt.figtext(0.02, 0.02, evaluation_text, fontsize=10, wrap=True, fontproperties=fm.FontProperties(fname=None, family=font_family))
     
     elif chart_type == '문항별 평균 점수':
-        fig, ax = plt.subplots(figsize=(12, 6))
         survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
                        '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
         
@@ -204,16 +230,16 @@ def create_visualization(df, chart_type, student_name=None):
         stds = df[survey_items].std()
         
         plt.bar(survey_items, means, yerr=stds, capsize=5)
-        plt.title('문항별 평균 점수 (오차 막대: 표준편차)')
-        plt.xticks(rotation=45, ha='right')
-        plt.ylabel('평균 점수 (1-5)')
+        plt.title('문항별 평균 점수 (오차 막대: 표준편차)', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
+        plt.xticks(rotation=45, ha='right', fontsize=12)
+        plt.ylabel('평균 점수 (1-5)', fontsize=12)
         plt.ylim(0, 5)
         
         # 통계 정보 추가
         stats_text = "통계 정보:\n"
         stats = df[survey_items].describe()
         stats_text += stats.to_string()
-        plt.figtext(0.02, 0.02, stats_text, fontsize=8, wrap=True)
+        plt.figtext(0.02, 0.02, stats_text, fontsize=8, wrap=True, fontproperties=fm.FontProperties(fname=None, family=font_family))
     
     elif chart_type == '학생별 변화 추이':
         if student_name is None:
@@ -223,30 +249,34 @@ def create_visualization(df, chart_type, student_name=None):
         if student_data.empty:
             return None, f"'{student_name}' 학생을 찾을 수 없습니다."
         
-        fig, ax = plt.subplots(figsize=(10, 6))
         changes = ['자신감 변화', '재미 변화', '긴장도 변화']
         values = student_data[changes].iloc[0]
         
         plt.bar(changes, values)
-        plt.title(f'{student_name} 학생의 수업 전후 변화')
-        plt.xticks(rotation=45, ha='right')
-        plt.ylabel('변화 점수 (1-5)')
+        plt.title(f'{student_name} 학생의 수업 전후 변화', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
+        plt.xticks(rotation=45, ha='right', fontsize=12)
+        plt.ylabel('변화 점수 (1-5)', fontsize=12)
         plt.ylim(0, 5)
     
     elif chart_type == '문항별 상관관계':
-        fig, ax = plt.subplots(figsize=(12, 10))
         survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
                        '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
         
         correlation_matrix = df[survey_items].corr()
         sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f')
-        plt.title('문항별 상관관계')
+        plt.title('문항별 상관관계', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
+        plt.xticks(fontsize=10, rotation=45, ha='right')
+        plt.yticks(fontsize=10)
+    
+    # 여백 조정
+    plt.tight_layout(pad=3.0)
     
     # 그래프를 base64로 인코딩
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', dpi=300)
     buf.seek(0)
     img_str = base64.b64encode(buf.getvalue()).decode()
+    plt.close()
     
     return img_str, None
 
@@ -397,7 +427,7 @@ def main():
                 img_str, error = analyze_survey_data(spreadsheet_id, range_name, chart_type, student_name)
                 if img_str:
                     st.success('분석이 완료되었습니다!')
-                    st.image(f"data:image/png;base64,{img_str}", use_column_width=True)
+                    st.image(f"data:image/png;base64,{img_str}", use_container_width=True)
                     # 이미지 다운로드 링크 제공
                     st.markdown(f"[분석 결과 다운로드](data:image/png;base64,{img_str})", unsafe_allow_html=True)
                 else:
