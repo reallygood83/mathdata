@@ -10,6 +10,10 @@ import base64
 from io import BytesIO
 import json
 import platform
+import matplotlib.font_manager as fm
+
+# matplotlib 폰트 캐시 재구성
+fm._rebuild()
 
 # 한글 폰트 설정
 plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
@@ -17,22 +21,57 @@ plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
 # 운영체제별 한글 폰트 설정
 system = platform.system()
 if system == 'Windows':
-    plt.rcParams['font.family'] = 'Malgun Gothic'
+    # Windows의 경우 여러 한글 폰트를 순차적으로 시도
+    windows_fonts = ['Malgun Gothic', '맑은 고딕', 'Gulim', '굴림', 'Dotum', '돋움']
+    for font in windows_fonts:
+        try:
+            plt.rcParams['font.family'] = font
+            # 테스트용 텍스트로 폰트가 제대로 적용되는지 확인
+            plt.text(0.5, 0.5, '테스트', fontsize=12)
+            plt.close()
+            break
+        except:
+            continue
+    else:
+        plt.rcParams['font.family'] = 'Malgun Gothic'  # 기본값
 elif system == 'Darwin':  # macOS
-    plt.rcParams['font.family'] = 'AppleGothic'
+    mac_fonts = ['AppleGothic', 'Apple SD Gothic Neo', 'STHeiti']
+    for font in mac_fonts:
+        try:
+            plt.rcParams['font.family'] = font
+            plt.text(0.5, 0.5, '테스트', fontsize=12)
+            plt.close()
+            break
+        except:
+            continue
+    else:
+        plt.rcParams['font.family'] = 'AppleGothic'  # 기본값
 else:  # Linux 등
     try:
         # 나눔고딕 폰트가 설치되어 있는지 확인
-        import matplotlib.font_manager as fm
         font_list = fm.findSystemFonts(fontpaths=None, fontext='ttf')
         nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
         if nanum_fonts:
             plt.rcParams['font.family'] = 'NanumGothic'
         else:
-            # 한글 폰트가 없는 경우 기본 폰트 사용
-            plt.rcParams['font.family'] = 'DejaVu Sans'
+            # 다른 한글 폰트 시도
+            korean_fonts = ['Noto Sans CJK KR', 'Noto Sans KR', 'Source Han Sans KR']
+            for font in korean_fonts:
+                try:
+                    plt.rcParams['font.family'] = font
+                    plt.text(0.5, 0.5, '테스트', fontsize=12)
+                    plt.close()
+                    break
+                except:
+                    continue
+            else:
+                plt.rcParams['font.family'] = 'DejaVu Sans'  # 기본값
     except:
-        plt.rcParams['font.family'] = 'DejaVu Sans'
+        plt.rcParams['font.family'] = 'DejaVu Sans'  # 기본값
+
+# seaborn 설정
+sns.set_style("whitegrid")
+sns.set_context("notebook", font_scale=1.2)
 
 # Google Sheets API 설정
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
