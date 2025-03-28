@@ -12,9 +12,6 @@ import json
 import platform
 import matplotlib.font_manager as fm
 
-# matplotlib 폰트 캐시 재구성
-fm._rebuild()
-
 # 한글 폰트 설정
 plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
 
