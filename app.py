@@ -20,34 +20,43 @@ def set_korean_font():
     system = platform.system()
     
     if system == 'Windows':
-        font_name = 'Malgun Gothic'
-        # matplotlib 설정
-        plt.rcParams['font.family'] = font_name
-        plt.rcParams['axes.unicode_minus'] = False
-        return font_name
+        # Windows 기본 한글 폰트 경로
+        font_path = os.path.join(os.environ['SYSTEMROOT'], 'Fonts', 'malgun.ttf')
+        if os.path.exists(font_path):
+            # 폰트 매니저에 폰트 추가
+            font_prop = fm.FontProperties(fname=font_path)
+            plt.rcParams['font.family'] = font_prop.get_name()
+            # 폰트 캐시 재생성
+            fm._rebuild()
+            return font_prop
     
-    elif system == 'Darwin':  # macOS
-        font_name = 'AppleGothic'
-        plt.rcParams['font.family'] = font_name
-        plt.rcParams['axes.unicode_minus'] = False
-        return font_name
+    # macOS의 경우
+    elif system == 'Darwin':
+        plt.rcParams['font.family'] = 'AppleGothic'
+        return fm.FontProperties(family='AppleGothic')
     
-    else:  # Linux
+    # Linux의 경우
+    else:
         # 나눔고딕 폰트 찾기
         font_list = fm.findSystemFonts()
         nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
         
         if nanum_fonts:
-            font_name = 'NanumGothic'
+            font_path = nanum_fonts[0]
+            font_prop = fm.FontProperties(fname=font_path)
+            plt.rcParams['font.family'] = font_prop.get_name()
+            return font_prop
         else:
-            font_name = 'DejaVu Sans'
-        
-        plt.rcParams['font.family'] = font_name
-        plt.rcParams['axes.unicode_minus'] = False
-        return font_name
+            plt.rcParams['font.family'] = 'NanumGothic'
+            return fm.FontProperties(family='NanumGothic')
+
+    # 기본 폰트 설정
+    plt.rcParams['font.family'] = 'DejaVu Sans'
+    return fm.FontProperties(family='DejaVu Sans')
 
 # 전역 폰트 설정
 KOREAN_FONT = set_korean_font()
+plt.rcParams['axes.unicode_minus'] = False
 
 # seaborn 설정
 sns.set_style("whitegrid")
@@ -161,17 +170,6 @@ def create_visualization(df, chart_type, student_name=None):
     plt.clf()
     plt.close('all')
     
-    # 폰트 설정
-    if platform.system() == 'Windows':
-        font_path = os.path.join(os.environ['SYSTEMROOT'], 'Fonts', 'malgun.ttf')
-        if os.path.exists(font_path):
-            font_prop = fm.FontProperties(fname=font_path)
-            plt.rcParams['font.family'] = font_prop.get_name()
-    else:
-        plt.rcParams['font.family'] = 'NanumGothic'
-    
-    plt.rcParams['axes.unicode_minus'] = False
-    
     # 그래프 생성
     fig = plt.figure(figsize=(12, 8), dpi=100)
     
@@ -190,11 +188,11 @@ def create_visualization(df, chart_type, student_name=None):
         ax = fig.add_subplot(111)
         bars = ax.bar(range(len(survey_items)), values)
         
-        # 한글 폰트 직접 지정
-        ax.set_title(f'{student_name} 학생의 설문 응답', fontsize=16, fontweight='bold', fontproperties=font_prop if platform.system() == 'Windows' else None)
+        # 한글 폰트 적용
+        ax.set_title(f'{student_name} 학생의 설문 응답', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
         ax.set_xticks(range(len(survey_items)))
-        ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=font_prop if platform.system() == 'Windows' else None)
-        ax.set_ylabel('점수 (1-5)', fontsize=12, fontproperties=font_prop if platform.system() == 'Windows' else None)
+        ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
+        ax.set_ylabel('점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
         ax.set_ylim(0, 5)
         
         # 막대 위에 값 표시
@@ -202,13 +200,12 @@ def create_visualization(df, chart_type, student_name=None):
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2., height,
                    f'{height:.1f}',
-                   ha='center', va='bottom')
+                   ha='center', va='bottom', fontproperties=KOREAN_FONT)
         
         # 자기 평가 정보 추가
         evaluation_text = f"\n수업 요약: {student_data['수업 요약'].iloc[0]}\n"
         evaluation_text += f"자기 평가: {student_data['자기 평가'].iloc[0]}"
-        plt.figtext(0.02, 0.02, evaluation_text, fontsize=10, wrap=True, 
-                   fontproperties=font_prop if platform.system() == 'Windows' else None)
+        plt.figtext(0.02, 0.02, evaluation_text, fontsize=10, wrap=True, fontproperties=KOREAN_FONT)
     
     elif chart_type == '문항별 평균 점수':
         survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
@@ -220,13 +217,10 @@ def create_visualization(df, chart_type, student_name=None):
         ax = fig.add_subplot(111)
         bars = ax.bar(range(len(survey_items)), means, yerr=stds, capsize=5)
         
-        ax.set_title('문항별 평균 점수 (오차 막대: 표준편차)', fontsize=16, fontweight='bold', 
-                    fontproperties=font_prop if platform.system() == 'Windows' else None)
+        ax.set_title('문항별 평균 점수 (오차 막대: 표준편차)', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
         ax.set_xticks(range(len(survey_items)))
-        ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, 
-                          fontproperties=font_prop if platform.system() == 'Windows' else None)
-        ax.set_ylabel('평균 점수 (1-5)', fontsize=12, 
-                     fontproperties=font_prop if platform.system() == 'Windows' else None)
+        ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
+        ax.set_ylabel('평균 점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
         ax.set_ylim(0, 5)
         
         # 막대 위에 값 표시
@@ -234,7 +228,7 @@ def create_visualization(df, chart_type, student_name=None):
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2., height,
                    f'{height:.2f}',
-                   ha='center', va='bottom')
+                   ha='center', va='bottom', fontproperties=KOREAN_FONT)
     
     elif chart_type == '학생별 변화 추이':
         if student_name is None:
@@ -250,13 +244,10 @@ def create_visualization(df, chart_type, student_name=None):
         ax = fig.add_subplot(111)
         bars = ax.bar(range(len(changes)), values)
         
-        ax.set_title(f'{student_name} 학생의 수업 전후 변화', fontsize=16, fontweight='bold',
-                    fontproperties=font_prop if platform.system() == 'Windows' else None)
+        ax.set_title(f'{student_name} 학생의 수업 전후 변화', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
         ax.set_xticks(range(len(changes)))
-        ax.set_xticklabels(changes, rotation=45, ha='right', fontsize=12,
-                          fontproperties=font_prop if platform.system() == 'Windows' else None)
-        ax.set_ylabel('변화 점수 (1-5)', fontsize=12,
-                     fontproperties=font_prop if platform.system() == 'Windows' else None)
+        ax.set_xticklabels(changes, rotation=45, ha='right', fontsize=12, fontproperties=KOREAN_FONT)
+        ax.set_ylabel('변화 점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
         ax.set_ylim(0, 5)
         
         # 막대 위에 값 표시
@@ -264,7 +255,7 @@ def create_visualization(df, chart_type, student_name=None):
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2., height,
                    f'{height:.1f}',
-                   ha='center', va='bottom')
+                   ha='center', va='bottom', fontproperties=KOREAN_FONT)
     
     elif chart_type == '문항별 상관관계':
         survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
@@ -274,19 +265,16 @@ def create_visualization(df, chart_type, student_name=None):
         ax = fig.add_subplot(111)
         sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f', ax=ax)
         
-        ax.set_title('문항별 상관관계', fontsize=16, fontweight='bold',
-                    fontproperties=font_prop if platform.system() == 'Windows' else None)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10,
-                          fontproperties=font_prop if platform.system() == 'Windows' else None)
-        ax.set_yticklabels(ax.get_yticklabels(), fontsize=10,
-                          fontproperties=font_prop if platform.system() == 'Windows' else None)
+        ax.set_title('문항별 상관관계', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
+        ax.set_yticklabels(ax.get_yticklabels(), fontsize=10, fontproperties=KOREAN_FONT)
     
     # 여백 조정
     plt.tight_layout(pad=3.0)
     
     # 그래프를 base64로 인코딩
     buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', dpi=300)
+    plt.savefig(buf, format='png', bbox_inches='tight', dpi=300, facecolor='white')
     buf.seek(0)
     img_str = base64.b64encode(buf.getvalue()).decode()
     plt.close()
