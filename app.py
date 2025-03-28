@@ -9,10 +9,30 @@ import numpy as np
 import base64
 from io import BytesIO
 import json
+import platform
 
 # 한글 폰트 설정
-plt.rcParams['font.family'] = 'Malgun Gothic'  # 윈도우의 경우
 plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
+
+# 운영체제별 한글 폰트 설정
+system = platform.system()
+if system == 'Windows':
+    plt.rcParams['font.family'] = 'Malgun Gothic'
+elif system == 'Darwin':  # macOS
+    plt.rcParams['font.family'] = 'AppleGothic'
+else:  # Linux 등
+    try:
+        # 나눔고딕 폰트가 설치되어 있는지 확인
+        import matplotlib.font_manager as fm
+        font_list = fm.findSystemFonts(fontpaths=None, fontext='ttf')
+        nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
+        if nanum_fonts:
+            plt.rcParams['font.family'] = 'NanumGothic'
+        else:
+            # 한글 폰트가 없는 경우 기본 폰트 사용
+            plt.rcParams['font.family'] = 'DejaVu Sans'
+    except:
+        plt.rcParams['font.family'] = 'DejaVu Sans'
 
 # Google Sheets API 설정
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -215,13 +235,76 @@ def analyze_survey_data(spreadsheet_id, range_name, chart_type, student_name=Non
 def main():
     st.set_page_config(page_title="학생 설문 분석 MCP", layout="wide")
     
-    st.title('📊 학생 설문 분석 MCP')
+    # 커스텀 CSS 스타일 추가
+    st.markdown("""
+    <style>
+    .sidebar .sidebar-content {
+        background-image: linear-gradient(#FFE2D1, #FFCAB0);
+        color: #4F4F4F;
+    }
+    .Widget>label {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #5B3256;
+    }
+    .stButton>button {
+        background-color: #F8A978;
+        color: white;
+        font-weight: bold;
+        border-radius: 10px;
+        border: none;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #FF8C61;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .stTextInput>div>div>input, .stSelectbox>div>div>div {
+        border-radius: 8px;
+        border: 2px solid #FFD3B5;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #FFF1E6;
+        padding: 1rem;
+        border-radius: 0 10px 10px 0;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1, 
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2, 
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
+        color: #7D5A50;
+        font-weight: 700;
+    }
+    [data-testid="stFileUploader"] {
+        border-radius: 10px;
+        background-color: #FFDDB5;
+        padding: 1rem;
+    }
+    .stProgress > div > div > div > div {
+        background-color: #F8A978;
+    }
+    .main-title {
+        font-size: 2.5rem;
+        color: #7D5A50;
+        background: linear-gradient(45deg, #FF8C61, #F9C784);
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<h1 class="main-title">📊 학생 설문 분석 MCP</h1>', unsafe_allow_html=True)
     
     # 사이드바 설정
-    st.sidebar.title('설정')
+    st.sidebar.title('🌈 설정')
     
     # Google API 인증 설정 섹션
-    st.sidebar.header('Google API 인증')
+    st.sidebar.header('🔐 Google API 인증')
     st.sidebar.markdown("""
     ### 인증 방법
     다음 중 한 가지 방법으로 Google API 인증 정보를 설정하세요:
@@ -237,12 +320,12 @@ def main():
         # 파일을 임시로 저장
         with open('credentials.json', 'wb') as f:
             f.write(uploaded_file.getbuffer())
-        st.sidebar.success("인증 파일이 성공적으로 업로드되었습니다.")
+        st.sidebar.success("인증 파일이 성공적으로 업로드되었습니다. ✅")
     
     # 구글 스프레드시트 ID 입력
-    st.sidebar.header('스프레드시트 설정')
-    spreadsheet_id = st.sidebar.text_input('구글 스프레드시트 ID를 입력하세요')
-    range_name = st.sidebar.text_input('데이터 범위를 입력하세요 (예: Sheet1!A1:F100)')
+    st.sidebar.header('📋 스프레드시트 설정')
+    spreadsheet_id = st.sidebar.text_input('📝 스프레드시트 ID를 입력하세요')
+    range_name = st.sidebar.text_input('📍 데이터 범위를 입력하세요 (예: Sheet1!A1:F100)')
     
     # 분석 유형 선택
     chart_options = ['문항별 평균 점수', '문항별 상관관계']
@@ -261,15 +344,15 @@ def main():
     else:
         student_options = ['전체']
     
-    st.sidebar.header('분석 설정')
-    chart_type = st.sidebar.selectbox('분석 유형을 선택하세요', chart_options)
+    st.sidebar.header('📊 분석 설정')
+    chart_type = st.sidebar.selectbox('📈 분석 유형을 선택하세요', chart_options)
     
     if '학생별' in chart_type:
-        student_name = st.sidebar.selectbox('학생을 선택하세요', student_options[1:] if len(student_options) > 1 else [''])
+        student_name = st.sidebar.selectbox('👨‍🎓 학생을 선택하세요', student_options[1:] if len(student_options) > 1 else [''])
     else:
         student_name = None
     
-    if st.sidebar.button('분석 실행'):
+    if st.sidebar.button('✨ 분석 실행'):
         if spreadsheet_id and range_name:
             with st.spinner('데이터를 분석하는 중...'):
                 img_str, error = analyze_survey_data(spreadsheet_id, range_name, chart_type, student_name)
@@ -284,22 +367,28 @@ def main():
             st.error('스프레드시트 ID와 데이터 범위를 모두 입력해주세요.')
     
     # 앱 사용법 안내
-    with st.expander("앱 사용 안내", expanded=False):
+    with st.expander("📚 앱 사용 안내", expanded=False):
         st.markdown("""
-        ### 사용 방법
-        1. 사이드바에서 Google API 인증 정보를 설정합니다.
-        2. 구글 스프레드시트 ID와 데이터 범위를 입력합니다.
-        3. 분석 유형을 선택합니다.
-        4. 학생별 분석인 경우 학생을 선택합니다.
-        5. '분석 실행' 버튼을 클릭합니다.
+        <div style="background-color: #FFF1E6; padding: 20px; border-radius: 10px; border-left: 5px solid #F8A978;">
+        <h3 style="color: #7D5A50;">🚀 사용 방법</h3>
+        <ol style="color: #5B4B49;">
+            <li>사이드바에서 Google API 인증 정보를 설정합니다. 🔐</li>
+            <li>구글 스프레드시트 ID와 데이터 범위를 입력합니다. 📋</li>
+            <li>분석 유형을 선택합니다. 📊</li>
+            <li>학생별 분석인 경우 학생을 선택합니다. 👨‍🎓</li>
+            <li>'분석 실행' 버튼을 클릭합니다. ✨</li>
+        </ol>
         
-        ### 인증 파일 얻는 방법
-        1. [Google Cloud Console](https://console.cloud.google.com/)에 접속합니다.
-        2. 프로젝트를 선택하거나 새 프로젝트를 만듭니다.
-        3. Google Sheets API를 사용 설정합니다.
-        4. 사용자 인증 정보 > 서비스 계정 > 키 만들기를 선택합니다.
-        5. JSON 형식의 키를 다운로드합니다.
-        """)
+        <h3 style="color: #7D5A50;">🔑 인증 파일 얻는 방법</h3>
+        <ol style="color: #5B4B49;">
+            <li><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>에 접속합니다.</li>
+            <li>프로젝트를 선택하거나 새 프로젝트를 만듭니다.</li>
+            <li>Google Sheets API를 사용 설정합니다.</li>
+            <li>사용자 인증 정보 > 서비스 계정 > 키 만들기를 선택합니다.</li>
+            <li>JSON 형식의 키를 다운로드합니다.</li>
+        </ol>
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == '__main__':
     main() 
