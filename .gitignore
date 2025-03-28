@@ -31,10 +31,16 @@ ENV/
 *.swp
 *.swo
 
-# Credentials and sensitive data
-*.json
+# Google API credentials
+credentials.json
+*.json.key
+
+# Environment variables
 .env
-token.pickle
+.env.local
+
+# Streamlit
+.streamlit/
 
 # OS
 .DS_Store
