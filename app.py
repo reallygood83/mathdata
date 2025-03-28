@@ -8,6 +8,7 @@ import os.path
 import numpy as np
 import base64
 from io import BytesIO
+import json
 
 # 한글 폰트 설정
 plt.rcParams['font.family'] = 'Malgun Gothic'  # 윈도우의 경우
@@ -15,11 +16,12 @@ plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
 
 # Google Sheets API 설정
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-CREDENTIALS_PATH = r"C:\Users\PC\OneDrive\바탕 화면\my_service_account.json\spherical-wave-455120-b7-68ae47f7b92a.json"
 
 def get_google_sheets_service():
-    credentials = service_account.Credentials.from_service_account_file(
-        CREDENTIALS_PATH, scopes=SCOPES)
+    # Streamlit secrets에서 credentials 가져오기
+    credentials_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
+    credentials = service_account.Credentials.from_service_account_info(
+        credentials_dict, scopes=SCOPES)
     service = build('sheets', 'v4', credentials=credentials)
     return service
 
@@ -46,7 +48,7 @@ def get_sheet_data(spreadsheet_id, range_name):
         '🎯 지금 수업에 집중하고 있어요. (1점: 전혀 집중하지 못해요 ~ 5점: 완전히 집중하고 있어요)': '집중도',
         '😆 지금 수업이 즐거워요. (1점: 전혀 즐겁지 않아요 ~ 5점: 매우 즐거워요)': '즐거움',
         '🌟 이제 수학 공부에 자신감이 더 생겼어요. (1점: 전혀 그렇지 않아요 ~ 5점: 매우 그래요)': '자신감 변화',
-        '🎉 수업 후에 수학이 전보다 더 재미있어졌어요. (1점: 전혀 그렇지 않아요 ~ 5점: 매우 그래요)': '재미 변화',
+        '�� 수업 후에 수학이 전보다 더 재미있어졌어요. (1점: 전혀 그렇지 않아요 ~ 5점: 매우 그래요)': '재미 변화',
         '😌 수업 후에는 수학 시간에 전보다 덜 긴장돼요. (1점: 전혀 그렇지 않아요 ~ 5점: 매우 그래요)': '긴장도 변화',
         '🧠 오늘 수업 내용을 잘 이해했어요. (1점: 전혀 이해하지 못했어요 ~ 5점: 매우 잘 이해했어요)': '이해도',
         '📋 ✏️ 오늘 배운 수학 내용을 한 줄로 요약해 보세요.': '수업 요약',
