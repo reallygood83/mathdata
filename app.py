@@ -11,63 +11,86 @@ from io import BytesIO
 import json
 import platform
 import matplotlib.font_manager as fm
+from matplotlib import font_manager
 
 # 한글 폰트 설정
-plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
+def set_korean_font():
+    """한글 폰트를 설정하고 성공한 폰트 이름을 반환합니다."""
+    system = platform.system()
+    font_path = None
+    font_name = None
 
-# 운영체제별 한글 폰트 설정
-system = platform.system()
-if system == 'Windows':
-    # Windows의 경우 여러 한글 폰트를 순차적으로 시도
-    windows_fonts = ['Malgun Gothic', '맑은 고딕', 'Gulim', '굴림', 'Dotum', '돋움']
-    for font in windows_fonts:
-        try:
-            plt.rcParams['font.family'] = font
-            # 테스트용 텍스트로 폰트가 제대로 적용되는지 확인
-            plt.figure(figsize=(1, 1))
-            plt.text(0.5, 0.5, '테스트', fontsize=12)
-            plt.close()
-            break
-        except:
-            continue
-    else:
-        plt.rcParams['font.family'] = 'Malgun Gothic'  # 기본값
-elif system == 'Darwin':  # macOS
-    mac_fonts = ['AppleGothic', 'Apple SD Gothic Neo', 'STHeiti']
-    for font in mac_fonts:
-        try:
-            plt.rcParams['font.family'] = font
-            plt.figure(figsize=(1, 1))
-            plt.text(0.5, 0.5, '테스트', fontsize=12)
-            plt.close()
-            break
-        except:
-            continue
-    else:
-        plt.rcParams['font.family'] = 'AppleGothic'  # 기본값
-else:  # Linux 등
-    try:
-        # 나눔고딕 폰트가 설치되어 있는지 확인
-        font_list = fm.findSystemFonts(fontpaths=None, fontext='ttf')
-        nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
-        if nanum_fonts:
-            plt.rcParams['font.family'] = 'NanumGothic'
-        else:
-            # 다른 한글 폰트 시도
-            korean_fonts = ['Noto Sans CJK KR', 'Noto Sans KR', 'Source Han Sans KR']
-            for font in korean_fonts:
-                try:
-                    plt.rcParams['font.family'] = font
-                    plt.figure(figsize=(1, 1))
-                    plt.text(0.5, 0.5, '테스트', fontsize=12)
-                    plt.close()
+    if system == 'Windows':
+        font_dirs = [
+            'C:/Windows/Fonts',
+            os.path.expanduser('~/.fonts'),
+            os.path.expanduser('~/Library/Fonts'),
+        ]
+        font_files = [
+            'malgun.ttf',  # 맑은 고딕
+            'gulim.ttc',   # 굴림
+            'batang.ttc',  # 바탕
+            'dotum.ttc',   # 돋움
+        ]
+        
+        # 폰트 파일 찾기
+        for font_dir in font_dirs:
+            for font_file in font_files:
+                path = os.path.join(font_dir, font_file)
+                if os.path.exists(path):
+                    font_path = path
+                    font_name = "Malgun Gothic" if "malgun" in font_file else "Gulim" if "gulim" in font_file else "Batang"
                     break
-                except:
-                    continue
-            else:
-                plt.rcParams['font.family'] = 'DejaVu Sans'  # 기본값
-    except:
-        plt.rcParams['font.family'] = 'DejaVu Sans'  # 기본값
+            if font_path:
+                break
+                
+    elif system == 'Darwin':  # macOS
+        font_name = 'AppleGothic'
+        
+    else:  # Linux
+        # 나눔고딕 폰트 찾기
+        font_dirs = [
+            '/usr/share/fonts',
+            '/usr/local/share/fonts',
+            os.path.expanduser('~/.fonts'),
+            os.path.expanduser('~/Library/Fonts'),
+        ]
+        font_files = [
+            'NanumGothic.ttf',
+            'NotoSansCJK-Regular.ttc',
+            'NotoSansKR-Regular.otf',
+        ]
+        
+        for font_dir in font_dirs:
+            if os.path.exists(font_dir):
+                for root, _, files in os.walk(font_dir):
+                    for font_file in font_files:
+                        if font_file in files:
+                            font_path = os.path.join(root, font_file)
+                            font_name = "NanumGothic" if "Nanum" in font_file else "Noto Sans CJK KR"
+                            break
+                if font_path:
+                    break
+
+    if font_path:
+        # 폰트 직접 로드
+        font_manager.fontManager.addfont(font_path)
+        font = font_manager.FontProperties(fname=font_path).get_name()
+    else:
+        # 시스템 폰트 사용
+        if font_name:
+            font = font_name
+        else:
+            font = 'DejaVu Sans'  # 기본 폰트
+
+    # matplotlib 설정
+    plt.rcParams['font.family'] = font
+    plt.rcParams['axes.unicode_minus'] = False
+    
+    return font
+
+# 전역 폰트 설정
+KOREAN_FONT = set_korean_font()
 
 # seaborn 설정
 sns.set_style("whitegrid")
@@ -175,29 +198,12 @@ def create_visualization(df, chart_type, student_name=None):
     if df is None:
         return None, "데이터를 찾을 수 없습니다."
     
-    # 한글 폰트 설정 (함수 내에서 다시 설정)
-    system = platform.system()
-    font_family = None
-    
-    if system == 'Windows':
-        font_family = 'Malgun Gothic'
-    elif system == 'Darwin':  # macOS
-        font_family = 'AppleGothic'
-    else:  # Linux 등
-        # 나눔고딕 폰트가 설치되어 있는지 확인
-        font_list = fm.findSystemFonts(fontpaths=None, fontext='ttf')
-        nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
-        if nanum_fonts:
-            font_family = 'NanumGothic'
-        else:
-            # Ubuntu의 경우 기본 한글 폰트
-            font_family = 'DejaVu Sans'
-    
     # 그래프 초기화
     plt.clf()
     plt.figure(figsize=(12, 8), dpi=100)
-    plt.rcParams['font.family'] = font_family
-    plt.rcParams['axes.unicode_minus'] = False
+    
+    # 폰트 설정 적용
+    font_prop = font_manager.FontProperties(family=KOREAN_FONT)
     
     if chart_type == '학생별 설문 응답':
         if student_name is None:
@@ -212,15 +218,15 @@ def create_visualization(df, chart_type, student_name=None):
         values = student_data[survey_items].iloc[0]
         
         plt.bar(survey_items, values)
-        plt.title(f'{student_name} 학생의 설문 응답', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
-        plt.xticks(rotation=45, ha='right', fontsize=12)
-        plt.ylabel('점수 (1-5)', fontsize=12)
+        plt.title(f'{student_name} 학생의 설문 응답', fontsize=16, fontweight='bold', fontproperties=font_prop)
+        plt.xticks(rotation=45, ha='right', fontsize=12, fontproperties=font_prop)
+        plt.ylabel('점수 (1-5)', fontsize=12, fontproperties=font_prop)
         plt.ylim(0, 5)
         
         # 자기 평가 정보 추가
         evaluation_text = f"\n수업 요약: {student_data['수업 요약'].iloc[0]}\n"
         evaluation_text += f"자기 평가: {student_data['자기 평가'].iloc[0]}"
-        plt.figtext(0.02, 0.02, evaluation_text, fontsize=10, wrap=True, fontproperties=fm.FontProperties(fname=None, family=font_family))
+        plt.figtext(0.02, 0.02, evaluation_text, fontsize=10, wrap=True, fontproperties=font_prop)
     
     elif chart_type == '문항별 평균 점수':
         survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
@@ -230,16 +236,16 @@ def create_visualization(df, chart_type, student_name=None):
         stds = df[survey_items].std()
         
         plt.bar(survey_items, means, yerr=stds, capsize=5)
-        plt.title('문항별 평균 점수 (오차 막대: 표준편차)', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
-        plt.xticks(rotation=45, ha='right', fontsize=12)
-        plt.ylabel('평균 점수 (1-5)', fontsize=12)
+        plt.title('문항별 평균 점수 (오차 막대: 표준편차)', fontsize=16, fontweight='bold', fontproperties=font_prop)
+        plt.xticks(rotation=45, ha='right', fontsize=12, fontproperties=font_prop)
+        plt.ylabel('평균 점수 (1-5)', fontsize=12, fontproperties=font_prop)
         plt.ylim(0, 5)
         
         # 통계 정보 추가
         stats_text = "통계 정보:\n"
         stats = df[survey_items].describe()
         stats_text += stats.to_string()
-        plt.figtext(0.02, 0.02, stats_text, fontsize=8, wrap=True, fontproperties=fm.FontProperties(fname=None, family=font_family))
+        plt.figtext(0.02, 0.02, stats_text, fontsize=8, wrap=True, fontproperties=font_prop)
     
     elif chart_type == '학생별 변화 추이':
         if student_name is None:
@@ -253,9 +259,9 @@ def create_visualization(df, chart_type, student_name=None):
         values = student_data[changes].iloc[0]
         
         plt.bar(changes, values)
-        plt.title(f'{student_name} 학생의 수업 전후 변화', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
-        plt.xticks(rotation=45, ha='right', fontsize=12)
-        plt.ylabel('변화 점수 (1-5)', fontsize=12)
+        plt.title(f'{student_name} 학생의 수업 전후 변화', fontsize=16, fontweight='bold', fontproperties=font_prop)
+        plt.xticks(rotation=45, ha='right', fontsize=12, fontproperties=font_prop)
+        plt.ylabel('변화 점수 (1-5)', fontsize=12, fontproperties=font_prop)
         plt.ylim(0, 5)
     
     elif chart_type == '문항별 상관관계':
@@ -264,9 +270,9 @@ def create_visualization(df, chart_type, student_name=None):
         
         correlation_matrix = df[survey_items].corr()
         sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f')
-        plt.title('문항별 상관관계', fontsize=16, fontweight='bold', fontproperties=fm.FontProperties(fname=None, family=font_family))
-        plt.xticks(fontsize=10, rotation=45, ha='right')
-        plt.yticks(fontsize=10)
+        plt.title('문항별 상관관계', fontsize=16, fontweight='bold', fontproperties=font_prop)
+        plt.xticks(fontsize=10, rotation=45, ha='right', fontproperties=font_prop)
+        plt.yticks(fontsize=10, fontproperties=font_prop)
     
     # 여백 조정
     plt.tight_layout(pad=3.0)
