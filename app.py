@@ -27,6 +27,7 @@ if system == 'Windows':
         try:
             plt.rcParams['font.family'] = font
             # 테스트용 텍스트로 폰트가 제대로 적용되는지 확인
+            plt.figure(figsize=(1, 1))
             plt.text(0.5, 0.5, '테스트', fontsize=12)
             plt.close()
             break
@@ -39,6 +40,7 @@ elif system == 'Darwin':  # macOS
     for font in mac_fonts:
         try:
             plt.rcParams['font.family'] = font
+            plt.figure(figsize=(1, 1))
             plt.text(0.5, 0.5, '테스트', fontsize=12)
             plt.close()
             break
@@ -59,6 +61,7 @@ else:  # Linux 등
             for font in korean_fonts:
                 try:
                     plt.rcParams['font.family'] = font
+                    plt.figure(figsize=(1, 1))
                     plt.text(0.5, 0.5, '테스트', fontsize=12)
                     plt.close()
                     break
