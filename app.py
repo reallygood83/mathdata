@@ -1,4 +1,8 @@
 import streamlit as st
+
+# 페이지 설정을 가장 먼저 실행
+st.set_page_config(page_title="학생 설문 분석 MCP", layout="wide")
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -302,70 +306,8 @@ def analyze_survey_data(spreadsheet_id, range_name, chart_type, student_name=Non
         return None, f"분석 중 오류가 발생했습니다: {str(e)}"
 
 def main():
-    st.set_page_config(page_title="학생 설문 분석 MCP", layout="wide")
-    
     # 커스텀 CSS 스타일 추가
-    st.markdown("""
-    <style>
-    .sidebar .sidebar-content {
-        background-image: linear-gradient(#FFE2D1, #FFCAB0);
-        color: #4F4F4F;
-    }
-    .Widget>label {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #5B3256;
-    }
-    .stButton>button {
-        background-color: #F8A978;
-        color: white;
-        font-weight: bold;
-        border-radius: 10px;
-        border: none;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #FF8C61;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    .stTextInput>div>div>input, .stSelectbox>div>div>div {
-        border-radius: 8px;
-        border: 2px solid #FFD3B5;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #FFF1E6;
-        padding: 1rem;
-        border-radius: 0 10px 10px 0;
-        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-    }
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1, 
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2, 
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
-        color: #7D5A50;
-        font-weight: 700;
-    }
-    [data-testid="stFileUploader"] {
-        border-radius: 10px;
-        background-color: #FFDDB5;
-        padding: 1rem;
-    }
-    .stProgress > div > div > div > div {
-        background-color: #F8A978;
-    }
-    .main-title {
-        font-size: 2.5rem;
-        color: #7D5A50;
-        background: linear-gradient(45deg, #FF8C61, #F9C784);
-        padding: 0.5rem 1rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
     
     st.markdown('<h1 class="main-title">📊 학생 설문 분석 MCP</h1>', unsafe_allow_html=True)
     
