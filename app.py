@@ -19,57 +19,31 @@ def set_korean_font():
     """한글 폰트를 설정하고 성공한 폰트 이름을 반환합니다."""
     system = platform.system()
     
-    # Windows 환경
     if system == 'Windows':
-        font_name = 'Malgun Gothic'  # Windows의 기본 한글 폰트
-        # 폰트 직접 지정
-        font_path = os.path.join(os.environ['SYSTEMROOT'], 'Fonts', 'malgun.ttf')
-        
-        if os.path.exists(font_path):
-            # 폰트 매니저에 폰트 추가
-            font_manager._load_fontmanager(try_read_cache=False)
-            font_manager.fontManager.addfont(font_path)
-            
-            # matplotlib 설정
-            mpl.rcParams['font.family'] = font_name
-            mpl.rcParams['axes.unicode_minus'] = False
-            
-            # rc 설정으로 한번 더 지정
-            rc('font', family=font_name)
-            
-            return font_name
-    
-    # macOS 환경
-    elif system == 'Darwin':
-        font_name = 'AppleGothic'
-        mpl.rcParams['font.family'] = font_name
-        rc('font', family=font_name)
+        font_name = 'Malgun Gothic'
+        # matplotlib 설정
+        plt.rcParams['font.family'] = font_name
+        plt.rcParams['axes.unicode_minus'] = False
         return font_name
     
-    # Linux 환경
-    else:
+    elif system == 'Darwin':  # macOS
+        font_name = 'AppleGothic'
+        plt.rcParams['font.family'] = font_name
+        plt.rcParams['axes.unicode_minus'] = False
+        return font_name
+    
+    else:  # Linux
         # 나눔고딕 폰트 찾기
         font_list = fm.findSystemFonts()
         nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
         
         if nanum_fonts:
-            font_path = nanum_fonts[0]
             font_name = 'NanumGothic'
         else:
-            # Noto Sans CJK 시도
-            noto_fonts = [f for f in font_list if 'NotoSansCJK' in f]
-            if noto_fonts:
-                font_path = noto_fonts[0]
-                font_name = 'Noto Sans CJK'
-            else:
-                font_path = None
-                font_name = 'DejaVu Sans'
+            font_name = 'DejaVu Sans'
         
-        if font_path:
-            font_manager.fontManager.addfont(font_path)
-        
-        mpl.rcParams['font.family'] = font_name
-        rc('font', family=font_name)
+        plt.rcParams['font.family'] = font_name
+        plt.rcParams['axes.unicode_minus'] = False
         return font_name
 
 # 전역 폰트 설정
