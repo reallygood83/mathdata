@@ -17,46 +17,45 @@ import matplotlib as mpl
 # 한글 폰트 설정
 def set_korean_font():
     """한글 폰트를 설정하고 성공한 폰트 이름을 반환합니다."""
-    system = platform.system()
-    
-    if system == 'Windows':
-        # Windows 기본 한글 폰트 경로
-        font_path = os.path.join(os.environ['SYSTEMROOT'], 'Fonts', 'malgun.ttf')
-        if os.path.exists(font_path):
-            # 폰트 매니저에 폰트 추가
-            font_prop = fm.FontProperties(fname=font_path)
-            plt.rcParams['font.family'] = font_prop.get_name()
-            # 폰트 캐시 재생성
-            fm._rebuild()
-            return font_prop
-    
-    # macOS의 경우
-    elif system == 'Darwin':
-        plt.rcParams['font.family'] = 'AppleGothic'
-        return fm.FontProperties(family='AppleGothic')
-    
-    # Linux의 경우
-    else:
-        # 나눔고딕 폰트 찾기
-        font_list = fm.findSystemFonts()
-        nanum_fonts = [f for f in font_list if 'NanumGothic' in f]
+    try:
+        # 기본 폰트 설정
+        plt.rcParams['font.family'] = 'DejaVu Sans'
+        plt.rcParams['axes.unicode_minus'] = False
         
-        if nanum_fonts:
-            font_path = nanum_fonts[0]
+        # 시스템에서 사용 가능한 폰트 찾기
+        font_list = fm.findSystemFonts()
+        
+        # 선호하는 한글 폰트 목록
+        preferred_fonts = ['NanumGothic', 'Malgun Gothic', 'AppleGothic', 'Noto Sans CJK KR']
+        
+        # 설치된 폰트 중에서 선호하는 폰트 찾기
+        for font_name in preferred_fonts:
+            matching_fonts = [f for f in font_list if font_name.lower() in f.lower()]
+            if matching_fonts:
+                font_path = matching_fonts[0]
+                font_prop = fm.FontProperties(fname=font_path)
+                plt.rcParams['font.family'] = font_prop.get_name()
+                st.success(f"한글 폰트 '{font_name}' 적용 완료")
+                return font_prop
+        
+        # 시스템에 설치된 모든 한글 폰트 찾기
+        korean_fonts = [f for f in font_list if any(keyword in f.lower() for keyword in ['gothic', 'gulim', 'batang', 'dotum', 'korean'])]
+        if korean_fonts:
+            font_path = korean_fonts[0]
             font_prop = fm.FontProperties(fname=font_path)
             plt.rcParams['font.family'] = font_prop.get_name()
+            st.success(f"시스템 한글 폰트 적용 완료: {os.path.basename(font_path)}")
             return font_prop
-        else:
-            plt.rcParams['font.family'] = 'NanumGothic'
-            return fm.FontProperties(family='NanumGothic')
-
-    # 기본 폰트 설정
-    plt.rcParams['font.family'] = 'DejaVu Sans'
-    return fm.FontProperties(family='DejaVu Sans')
+        
+        st.warning("한글 폰트를 찾을 수 없어 기본 폰트를 사용합니다.")
+        return fm.FontProperties(family='DejaVu Sans')
+        
+    except Exception as e:
+        st.error(f"폰트 설정 중 오류 발생: {str(e)}")
+        return fm.FontProperties(family='DejaVu Sans')
 
 # 전역 폰트 설정
 KOREAN_FONT = set_korean_font()
-plt.rcParams['axes.unicode_minus'] = False
 
 # seaborn 설정
 sns.set_style("whitegrid")
