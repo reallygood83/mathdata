@@ -266,6 +266,15 @@ def create_visualization(df, chart_type, student_name=None):
     if df is None:
         return None, "데이터를 찾을 수 없습니다."
     
+    # 필요한 컬럼 목록
+    required_columns = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
+                     '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
+    
+    # 누락된 컬럼 확인
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        return None, f"다음 컬럼을 찾을 수 없습니다: {', '.join(missing_columns)}\n현재 데이터프레임 컬럼: {', '.join(df.columns)}"
+    
     # 그래프 초기화
     plt.clf()
     plt.close('all')
@@ -273,113 +282,122 @@ def create_visualization(df, chart_type, student_name=None):
     # 그래프 생성
     fig = plt.figure(figsize=(12, 8), dpi=100)
     
-    if chart_type == '학생별 설문 응답':
-        if student_name is None:
-            return None, "학생 이름을 지정해주세요."
+    try:
+        if chart_type == '학생별 설문 응답':
+            if student_name is None:
+                return None, "학생 이름을 지정해주세요."
+            
+            student_data = df[df['학생 이름'] == student_name]
+            if student_data.empty:
+                return None, f"'{student_name}' 학생을 찾을 수 없습니다."
+            
+            survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
+                        '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
+            
+            # 결측값 처리
+            values = student_data[survey_items].iloc[0].fillna(0)
+            
+            ax = fig.add_subplot(111)
+            bars = ax.bar(range(len(survey_items)), values)
+            
+            # 한글 폰트 적용
+            ax.set_title(f'{student_name} 학생의 설문 응답', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
+            ax.set_xticks(range(len(survey_items)))
+            ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
+            ax.set_ylabel('점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
+            ax.set_ylim(0, 5)
+            
+            # 막대 위에 값 표시
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}',
+                    ha='center', va='bottom', fontproperties=KOREAN_FONT)
+            
+            # 자기 평가 정보 추가
+            if '수업 요약' in student_data.columns and '자기 평가' in student_data.columns:
+                evaluation_text = f"\n수업 요약: {student_data['수업 요약'].iloc[0]}\n"
+                evaluation_text += f"자기 평가: {student_data['자기 평가'].iloc[0]}"
+                plt.figtext(0.02, 0.02, evaluation_text, fontsize=10, wrap=True, fontproperties=KOREAN_FONT)
         
-        student_data = df[df['학생 이름'] == student_name]
-        if student_data.empty:
-            return None, f"'{student_name}' 학생을 찾을 수 없습니다."
+        elif chart_type == '문항별 평균 점수':
+            survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
+                        '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
+            
+            # 결측값 처리
+            means = df[survey_items].fillna(0).mean()
+            stds = df[survey_items].fillna(0).std()
+            
+            ax = fig.add_subplot(111)
+            bars = ax.bar(range(len(survey_items)), means, yerr=stds, capsize=5)
+            
+            ax.set_title('문항별 평균 점수 (오차 막대: 표준편차)', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
+            ax.set_xticks(range(len(survey_items)))
+            ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
+            ax.set_ylabel('평균 점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
+            ax.set_ylim(0, 5)
+            
+            # 막대 위에 값 표시
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.2f}',
+                    ha='center', va='bottom', fontproperties=KOREAN_FONT)
         
-        survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
-                       '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
-        values = student_data[survey_items].iloc[0]
+        elif chart_type == '학생별 변화 추이':
+            if student_name is None:
+                return None, "학생 이름을 지정해주세요."
+            
+            student_data = df[df['학생 이름'] == student_name]
+            if student_data.empty:
+                return None, f"'{student_name}' 학생을 찾을 수 없습니다."
+            
+            changes = ['자신감 변화', '재미 변화', '긴장도 변화']
+            # 결측값 처리
+            values = student_data[changes].iloc[0].fillna(0)
+            
+            ax = fig.add_subplot(111)
+            bars = ax.bar(range(len(changes)), values)
+            
+            ax.set_title(f'{student_name} 학생의 수업 전후 변화', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
+            ax.set_xticks(range(len(changes)))
+            ax.set_xticklabels(changes, rotation=45, ha='right', fontsize=12, fontproperties=KOREAN_FONT)
+            ax.set_ylabel('변화 점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
+            ax.set_ylim(0, 5)
+            
+            # 막대 위에 값 표시
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}',
+                    ha='center', va='bottom', fontproperties=KOREAN_FONT)
         
-        ax = fig.add_subplot(111)
-        bars = ax.bar(range(len(survey_items)), values)
+        elif chart_type == '문항별 상관관계':
+            survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
+                        '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
+            
+            # 결측값 처리
+            correlation_matrix = df[survey_items].fillna(0).corr()
+            ax = fig.add_subplot(111)
+            sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f', ax=ax)
+            
+            ax.set_title('문항별 상관관계', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
+            ax.set_yticklabels(ax.get_yticklabels(), fontsize=10, fontproperties=KOREAN_FONT)
         
-        # 한글 폰트 적용
-        ax.set_title(f'{student_name} 학생의 설문 응답', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
-        ax.set_xticks(range(len(survey_items)))
-        ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
-        ax.set_ylabel('점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
-        ax.set_ylim(0, 5)
+        # 여백 조정
+        plt.tight_layout(pad=3.0)
         
-        # 막대 위에 값 표시
-        for bar in bars:
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{height:.1f}',
-                   ha='center', va='bottom', fontproperties=KOREAN_FONT)
+        # 그래프를 base64로 인코딩
+        buf = BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=300, facecolor='white')
+        buf.seek(0)
+        img_str = base64.b64encode(buf.getvalue()).decode()
+        plt.close()
         
-        # 자기 평가 정보 추가
-        evaluation_text = f"\n수업 요약: {student_data['수업 요약'].iloc[0]}\n"
-        evaluation_text += f"자기 평가: {student_data['자기 평가'].iloc[0]}"
-        plt.figtext(0.02, 0.02, evaluation_text, fontsize=10, wrap=True, fontproperties=KOREAN_FONT)
-    
-    elif chart_type == '문항별 평균 점수':
-        survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
-                       '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
-        
-        means = df[survey_items].mean()
-        stds = df[survey_items].std()
-        
-        ax = fig.add_subplot(111)
-        bars = ax.bar(range(len(survey_items)), means, yerr=stds, capsize=5)
-        
-        ax.set_title('문항별 평균 점수 (오차 막대: 표준편차)', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
-        ax.set_xticks(range(len(survey_items)))
-        ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
-        ax.set_ylabel('평균 점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
-        ax.set_ylim(0, 5)
-        
-        # 막대 위에 값 표시
-        for bar in bars:
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{height:.2f}',
-                   ha='center', va='bottom', fontproperties=KOREAN_FONT)
-    
-    elif chart_type == '학생별 변화 추이':
-        if student_name is None:
-            return None, "학생 이름을 지정해주세요."
-        
-        student_data = df[df['학생 이름'] == student_name]
-        if student_data.empty:
-            return None, f"'{student_name}' 학생을 찾을 수 없습니다."
-        
-        changes = ['자신감 변화', '재미 변화', '긴장도 변화']
-        values = student_data[changes].iloc[0]
-        
-        ax = fig.add_subplot(111)
-        bars = ax.bar(range(len(changes)), values)
-        
-        ax.set_title(f'{student_name} 학생의 수업 전후 변화', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
-        ax.set_xticks(range(len(changes)))
-        ax.set_xticklabels(changes, rotation=45, ha='right', fontsize=12, fontproperties=KOREAN_FONT)
-        ax.set_ylabel('변화 점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
-        ax.set_ylim(0, 5)
-        
-        # 막대 위에 값 표시
-        for bar in bars:
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{height:.1f}',
-                   ha='center', va='bottom', fontproperties=KOREAN_FONT)
-    
-    elif chart_type == '문항별 상관관계':
-        survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
-                       '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
-        
-        correlation_matrix = df[survey_items].corr()
-        ax = fig.add_subplot(111)
-        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f', ax=ax)
-        
-        ax.set_title('문항별 상관관계', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
-        ax.set_yticklabels(ax.get_yticklabels(), fontsize=10, fontproperties=KOREAN_FONT)
-    
-    # 여백 조정
-    plt.tight_layout(pad=3.0)
-    
-    # 그래프를 base64로 인코딩
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', dpi=300, facecolor='white')
-    buf.seek(0)
-    img_str = base64.b64encode(buf.getvalue()).decode()
-    plt.close()
-    
-    return img_str, None
+        return img_str, None
+    except Exception as e:
+        return None, f"시각화 생성 중 오류가 발생했습니다: {str(e)}"
 
 def analyze_survey_data(spreadsheet_id, range_name, chart_type, student_name=None):
     """
