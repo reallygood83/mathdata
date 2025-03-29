@@ -428,71 +428,170 @@ def main():
     
     st.markdown('<h1 class="main-title">📊 학생 설문 분석 MCP</h1>', unsafe_allow_html=True)
     
+    # 탭 생성: 학생용 / 교사용
+    tab1, tab2 = st.tabs(["👨‍🎓 학생용", "👨‍🏫 교사용"])
+    
     # 사이드바 설정
     st.sidebar.title('🌈 설정')
     
-    # Google API 인증 설정 섹션
-    st.sidebar.header('🔐 Google API 인증')
-    st.sidebar.markdown("""
-    ### 인증 방법
-    다음 중 한 가지 방법으로 Google API 인증 정보를 설정하세요:
-    1. 환경 변수 `GOOGLE_CREDENTIALS_PATH`에 인증 파일 경로 설정
-    2. 프로젝트 루트 디렉토리에 `credentials.json` 파일 위치시키기
-    3. 아래 업로더를 통해 인증 파일 직접 업로드
-    4. Streamlit Cloud를 사용하는 경우 `st.secrets`에 `GOOGLE_CREDENTIALS` 설정
-    """)
-    
-    # 인증 파일 업로드 기능
-    uploaded_file = st.sidebar.file_uploader("Google API 인증 파일 업로드", type=['json'])
-    if uploaded_file is not None:
-        # 파일을 임시로 저장
-        with open('credentials.json', 'wb') as f:
-            f.write(uploaded_file.getbuffer())
-        st.sidebar.success("인증 파일이 성공적으로 업로드되었습니다. ✅")
+    # Google API 인증 설정 섹션 (토글 방식)
+    with st.sidebar.expander("🔐 Google API 인증", expanded=False):
+        st.markdown("""
+        ### 인증 방법
+        다음 중 한 가지 방법으로 Google API 인증 정보를 설정하세요:
+        1. 환경 변수 `GOOGLE_CREDENTIALS_PATH`에 인증 파일 경로 설정
+        2. 프로젝트 루트 디렉토리에 `credentials.json` 파일 위치시키기
+        3. 아래 업로더를 통해 인증 파일 직접 업로드
+        4. Streamlit Cloud를 사용하는 경우 `st.secrets`에 `GOOGLE_CREDENTIALS` 설정
+        """)
+        
+        # 인증 파일 업로드 기능
+        uploaded_file = st.file_uploader("Google API 인증 파일 업로드", type=['json'])
+        if uploaded_file is not None:
+            # 파일을 임시로 저장
+            with open('credentials.json', 'wb') as f:
+                f.write(uploaded_file.getbuffer())
+            st.success("인증 파일이 성공적으로 업로드되었습니다. ✅")
     
     # 구글 스프레드시트 ID 입력
     st.sidebar.header('📋 스프레드시트 설정')
     spreadsheet_id = st.sidebar.text_input('📝 스프레드시트 ID를 입력하세요')
     range_name = st.sidebar.text_input('📍 데이터 범위를 입력하세요 (예: Sheet1!A1:F100)')
     
-    # 분석 유형 선택
-    chart_options = ['문항별 평균 점수', '문항별 상관관계']
-    if spreadsheet_id and range_name:
-        service = get_google_sheets_service()
-        if service:
-            try:
-                df = get_sheet_data(service, spreadsheet_id, range_name)
-                if df is not None:
-                    student_options = ['전체'] + df['학생 이름'].tolist()
-                    chart_options = ['학생별 설문 응답', '학생별 변화 추이'] + chart_options
-            except:
-                student_options = ['전체']
+    # 학생 데이터 분석 (학생용 탭)
+    with tab1:
+        st.header("🧩 내 설문 데이터 확인하기")
+        
+        if not (spreadsheet_id and range_name):
+            st.warning("사이드바에서 스프레드시트 ID와 데이터 범위를 먼저 입력해주세요.")
         else:
-            student_options = ['전체']
-    else:
-        student_options = ['전체']
+            # 학생 이름 입력 (자동완성 기능)
+            service = get_google_sheets_service()
+            if service:
+                try:
+                    df = get_sheet_data(service, spreadsheet_id, range_name)
+                    if df is not None and '학생 이름' in df.columns:
+                        student_options = sorted(df['학생 이름'].unique().tolist())
+                        
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            student_name = st.selectbox('👨‍🎓 내 이름 선택하기', options=[""] + student_options)
+                        with col2:
+                            show_data = st.button('📊 내 데이터 보기', use_container_width=True)
+                        
+                        if student_name and show_data:
+                            # 학생별 설문 응답 차트
+                            with st.spinner('데이터를 분석하는 중...'):
+                                img_str, error = analyze_survey_data(spreadsheet_id, range_name, '학생별 설문 응답', student_name)
+                                if img_str:
+                                    st.success(f'"{student_name}" 학생의 설문 응답 분석이 완료되었습니다!')
+                                    st.image(f"data:image/png;base64,{img_str}", use_container_width=True)
+                                    
+                                    # 변화 추이 차트
+                                    img_str2, error2 = analyze_survey_data(spreadsheet_id, range_name, '학생별 변화 추이', student_name)
+                                    if img_str2:
+                                        st.subheader("📈 수업 전후 변화")
+                                        st.image(f"data:image/png;base64,{img_str2}", use_container_width=True)
+                                else:
+                                    st.error(error)
+                    else:
+                        st.error("데이터를 불러올 수 없거나 '학생 이름' 컬럼이 없습니다.")
+                except Exception as e:
+                    st.error(f"데이터 로딩 중 오류가 발생했습니다: {str(e)}")
     
-    st.sidebar.header('📊 분석 설정')
-    chart_type = st.sidebar.selectbox('📈 분석 유형을 선택하세요', chart_options)
-    
-    if '학생별' in chart_type:
-        student_name = st.sidebar.selectbox('👨‍🎓 학생을 선택하세요', student_options[1:] if len(student_options) > 1 else [''])
-    else:
-        student_name = None
-    
-    if st.sidebar.button('✨ 분석 실행'):
-        if spreadsheet_id and range_name:
-            with st.spinner('데이터를 분석하는 중...'):
-                img_str, error = analyze_survey_data(spreadsheet_id, range_name, chart_type, student_name)
-                if img_str:
-                    st.success('분석이 완료되었습니다!')
-                    st.image(f"data:image/png;base64,{img_str}", use_container_width=True)
-                    # 이미지 다운로드 링크 제공
-                    st.markdown(f"[분석 결과 다운로드](data:image/png;base64,{img_str})", unsafe_allow_html=True)
-                else:
-                    st.error(error)
+    # 전체 데이터 분석 (교사용 탭)
+    with tab2:
+        st.header("📊 전체 학생 설문 분석")
+        
+        if not (spreadsheet_id and range_name):
+            st.warning("사이드바에서 스프레드시트 ID와 데이터 범위를 먼저 입력해주세요.")
         else:
-            st.error('스프레드시트 ID와 데이터 범위를 모두 입력해주세요.')
+            # 분석 유형 선택
+            chart_options = ['문항별 평균 점수', '문항별 상관관계', '모든 학생 응답 비교']
+            chart_type = st.selectbox('📈 분석 유형 선택', chart_options)
+            
+            # 분석 버튼
+            if st.button('✨ 분석 실행', use_container_width=True):
+                with st.spinner('데이터를 분석하는 중...'):
+                    if chart_type == '모든 학생 응답 비교':
+                        # 모든 학생의 데이터를 한 페이지에 표시
+                        service = get_google_sheets_service()
+                        if service:
+                            df = get_sheet_data(service, spreadsheet_id, range_name)
+                            if df is not None and '학생 이름' in df.columns:
+                                students = sorted(df['학생 이름'].unique().tolist())
+                                
+                                # 학생별 응답을 그리드 형태로 표시
+                                st.subheader(f"📋 전체 {len(students)}명의 학생 응답")
+                                
+                                survey_items = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
+                                            '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
+                                
+                                # 모든 학생 데이터를 하나의 큰 차트로 시각화
+                                try:
+                                    fig = plt.figure(figsize=(12, 8), dpi=100)
+                                    ax = fig.add_subplot(111)
+                                    
+                                    # 각 학생별로 다른 색상 사용
+                                    colors = plt.cm.tab20(np.linspace(0, 1, len(students)))
+                                    
+                                    for i, student in enumerate(students):
+                                        student_data = df[df['학생 이름'] == student]
+                                        values = []
+                                        for item in survey_items:
+                                            if item in student_data.columns:
+                                                val = student_data[item].iloc[0]
+                                                values.append(float(val) if pd.notna(val) else 0)
+                                            else:
+                                                values.append(0)
+                                                
+                                        # 각 학생의 데이터를 선 그래프로 표시
+                                        ax.plot(range(len(survey_items)), values, marker='o', 
+                                               color=colors[i], label=student, linewidth=2, alpha=0.7)
+                                    
+                                    # 차트 설정
+                                    ax.set_title('모든 학생의 설문 응답 비교', fontsize=16, fontweight='bold', fontproperties=KOREAN_FONT)
+                                    ax.set_xticks(range(len(survey_items)))
+                                    ax.set_xticklabels(survey_items, rotation=45, ha='right', fontsize=10, fontproperties=KOREAN_FONT)
+                                    ax.set_ylabel('점수 (1-5)', fontsize=12, fontproperties=KOREAN_FONT)
+                                    ax.set_ylim(0, 5)
+                                    ax.grid(True, linestyle='--', alpha=0.7)
+                                    
+                                    # 범례 추가
+                                    ax.legend(title='학생 이름', bbox_to_anchor=(1.05, 1), loc='upper left', 
+                                              prop=KOREAN_FONT, fontsize=9)
+                                    
+                                    # 여백 조정
+                                    plt.tight_layout(pad=3.0)
+                                    
+                                    # 그래프를 base64로 인코딩
+                                    buf = BytesIO()
+                                    plt.savefig(buf, format='png', bbox_inches='tight', dpi=300, facecolor='white')
+                                    buf.seek(0)
+                                    img_str = base64.b64encode(buf.getvalue()).decode()
+                                    plt.close()
+                                    
+                                    # 이미지 표시
+                                    st.image(f"data:image/png;base64,{img_str}", use_container_width=True)
+                                    
+                                    # 평균값도 함께 표시
+                                    st.subheader("📌 문항별 평균 점수")
+                                    avg_img_str, _ = analyze_survey_data(spreadsheet_id, range_name, '문항별 평균 점수')
+                                    if avg_img_str:
+                                        st.image(f"data:image/png;base64,{avg_img_str}", use_container_width=True)
+                                    
+                                except Exception as e:
+                                    st.error(f"시각화 중 오류가 발생했습니다: {str(e)}")
+                            else:
+                                st.error("데이터를 불러올 수 없거나 '학생 이름' 컬럼이 없습니다.")
+                    else:
+                        # 기존 차트 타입 (평균 점수, 상관관계)
+                        img_str, error = analyze_survey_data(spreadsheet_id, range_name, chart_type)
+                        if img_str:
+                            st.success('분석이 완료되었습니다!')
+                            st.image(f"data:image/png;base64,{img_str}", use_container_width=True)
+                        else:
+                            st.error(error)
     
     # 앱 사용법 안내
     with st.expander("📚 앱 사용 안내", expanded=False):
@@ -500,11 +599,10 @@ def main():
         <div style="background-color: #FFF1E6; padding: 20px; border-radius: 10px; border-left: 5px solid #F8A978;">
         <h3 style="color: #7D5A50;">🚀 사용 방법</h3>
         <ol style="color: #5B4B49;">
-            <li>사이드바에서 Google API 인증 정보를 설정합니다. 🔐</li>
-            <li>구글 스프레드시트 ID와 데이터 범위를 입력합니다. 📋</li>
-            <li>분석 유형을 선택합니다. 📊</li>
-            <li>학생별 분석인 경우 학생을 선택합니다. 👨‍🎓</li>
-            <li>'분석 실행' 버튼을 클릭합니다. ✨</li>
+            <li><b>학생용</b>: 자신의 이름을 선택하여 개인 설문 결과를 확인할 수 있습니다.</li>
+            <li><b>교사용</b>: 다양한 분석 유형을 통해 전체 학생의 설문 데이터를 분석할 수 있습니다.</li>
+            <li>사이드바에서 스프레드시트 ID와 데이터 범위를 입력해주세요.</li>
+            <li>분석 유형을 선택하고 분석 실행 버튼을 클릭하세요.</li>
         </ol>
         
         <h3 style="color: #7D5A50;">🔑 인증 파일 얻는 방법</h3>
