@@ -177,27 +177,6 @@ def get_google_sheets_service():
 def get_sheet_data(service, spreadsheet_id, range_name):
     """구글 스프레드시트에서 데이터를 가져옵니다."""
     try:
-        # 스프레드시트 ID와 범위가 뒤바뀐 경우를 확인
-        if '!' in spreadsheet_id and not '!' in range_name:
-            # ID와 범위가 뒤바뀐 경우 교정
-            spreadsheet_id, range_name = range_name, spreadsheet_id
-            st.info("스프레드시트 ID와 범위가 교정되었습니다.")
-        
-        # 시트 이름에 특수 문자가 있는 경우 작은따옴표로 감싸기
-        if '!' in range_name:
-            sheet_name, cell_range = range_name.split('!', 1)
-            if ('.' in sheet_name or ' ' in sheet_name) and not (sheet_name.startswith("'") and sheet_name.endswith("'")):
-                sheet_name = f"'{sheet_name}'"
-            range_name = f"{sheet_name}!{cell_range}"
-        
-        sheet = service.spreadsheets()
-        result = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
-        values = result.get('values', [])
-        
-        if not values:
-            st.warning("데이터가 없습니다.")
-            return None
-            
         # 설문 문항 컬럼명 정리
         survey_columns = {
             '📌 학생 번호를 선택하세요.': '학번',
@@ -218,47 +197,95 @@ def get_sheet_data(service, spreadsheet_id, range_name):
             '타임스탬프': '타임스탬프'
         }
         
-        # 헤더 행 가져오기
-        headers = values[0]
+        # 스프레드시트 ID와 범위가 뒤바뀐 경우를 확인
+        if '!' in spreadsheet_id and not '!' in range_name:
+            # ID와 범위가 뒤바뀐 경우 교정
+            spreadsheet_id, range_name = range_name, spreadsheet_id
+            st.info("스프레드시트 ID와 범위가 교정되었습니다.")
         
-        # 실제 데이터 행 가져오기
-        data = values[1:]
+        # 시트 이름에 특수 문자가 있는 경우 작은따옴표로 감싸기
+        if '!' in range_name:
+            sheet_name, cell_range = range_name.split('!', 1)
+            
+            # 작은따옴표 제거 (이미 있는 경우)
+            if sheet_name.startswith("'") and sheet_name.endswith("'"):
+                sheet_name = sheet_name[1:-1]
+            
+            # 시트 이름에 특수문자가 있으면 작은따옴표로 감싸기
+            if ('.' in sheet_name or ' ' in sheet_name or '-' in sheet_name):
+                sheet_name = f"'{sheet_name}'"
+                
+            # 최종 범위 설정
+            range_name = f"{sheet_name}!{cell_range}"
+            
+            # 디버깅 정보 표시
+            st.info(f"조회할 범위: {range_name}")
         
-        # 데이터프레임 생성
-        df = pd.DataFrame(data)
+        sheet = service.spreadsheets()
         
-        # 컬럼 수가 맞지 않는 경우 처리
-        if len(headers) > len(df.columns):
-            # 부족한 컬럼 추가
-            for i in range(len(df.columns), len(headers)):
-                df[i] = None
-        elif len(headers) < len(df.columns):
-            # 초과 컬럼 제거
-            df = df.iloc[:, :len(headers)]
-        
-        # 컬럼명 설정
-        df.columns = headers
-        
-        # 컬럼명 매핑
-        mapped_columns = {}
-        for orig_col in df.columns:
-            if orig_col in survey_columns:
-                mapped_columns[orig_col] = survey_columns[orig_col]
-            else:
-                # 매핑되지 않은 컬럼은 원래 이름 유지
-                mapped_columns[orig_col] = orig_col
-        
-        # 컬럼명 변경
-        df = df.rename(columns=mapped_columns)
-        
-        # 숫자형 데이터 변환
-        numeric_columns = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
-                         '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
-        for col in numeric_columns:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        return df
+        try:
+            # 시트 목록 확인 (디버깅용)
+            sheets_metadata = sheet.get(spreadsheetId=spreadsheet_id).execute()
+            sheets = sheets_metadata.get('sheets', [])
+            sheet_names = [s.get("properties", {}).get("title", "") for s in sheets]
+            st.info(f"스프레드시트에 존재하는 시트: {', '.join(sheet_names)}")
+            
+            # 실제 데이터 가져오기
+            result = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
+            values = result.get('values', [])
+            
+            if not values:
+                st.warning("데이터가 없습니다.")
+                return None
+            
+            # 헤더 행 가져오기
+            headers = values[0]
+            
+            # 실제 데이터 행 가져오기
+            data = values[1:]
+            
+            # 데이터프레임 생성
+            df = pd.DataFrame(data)
+            
+            # 컬럼 수가 맞지 않는 경우 처리
+            if len(headers) > len(df.columns):
+                # 부족한 컬럼 추가
+                for i in range(len(df.columns), len(headers)):
+                    df[i] = None
+            elif len(headers) < len(df.columns):
+                # 초과 컬럼 제거
+                df = df.iloc[:, :len(headers)]
+            
+            # 컬럼명 설정
+            df.columns = headers
+            
+            # 컬럼명 매핑
+            mapped_columns = {}
+            for orig_col in df.columns:
+                if orig_col in survey_columns:
+                    mapped_columns[orig_col] = survey_columns[orig_col]
+                else:
+                    # 매핑되지 않은 컬럼은 원래 이름 유지
+                    mapped_columns[orig_col] = orig_col
+            
+            # 컬럼명 변경
+            df = df.rename(columns=mapped_columns)
+            
+            # 숫자형 데이터 변환
+            numeric_columns = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
+                             '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
+            for col in numeric_columns:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            return df
+            
+        except Exception as api_error:
+            st.error(f"API 요청 중 오류 발생: {str(api_error)}")
+            st.info("시트 이름에 마침표(.)나 특수 문자가 포함된 경우, 일반적으로 Google Sheets API에서는 작은따옴표(')로 감싸야 합니다.")
+            st.info("예시: '2025.03.29.'!A1:O2 대신 Sheet1!A1:O2와 같은 단순한 시트 이름을 사용해보세요.")
+            return None
+            
     except Exception as e:
         st.error(f"데이터를 가져오는 중 오류가 발생했습니다: {str(e)}")
         return None
