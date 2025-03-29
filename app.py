@@ -177,6 +177,12 @@ def get_google_sheets_service():
 def get_sheet_data(service, spreadsheet_id, range_name):
     """구글 스프레드시트에서 데이터를 가져옵니다."""
     try:
+        # 스프레드시트 ID와 범위가 뒤바뀐 경우를 확인
+        if '!' in spreadsheet_id and not '!' in range_name:
+            # ID와 범위가 뒤바뀐 경우 교정
+            spreadsheet_id, range_name = range_name, spreadsheet_id
+            st.info("스프레드시트 ID와 범위가 교정되었습니다.")
+        
         # 시트 이름에 특수 문자가 있는 경우 작은따옴표로 감싸기
         if '!' in range_name:
             sheet_name, cell_range = range_name.split('!', 1)
