@@ -197,10 +197,7 @@ def get_sheet_data(service, spreadsheet_id, range_name):
         if not values:
             st.warning("데이터가 없습니다.")
             return None
-        
-        # 데이터프레임 생성 시 문자열 데이터 UTF-8로 인코딩 처리
-        df = pd.DataFrame(values[1:], columns=values[0])
-        
+            
         # 설문 문항 컬럼명 정리
         survey_columns = {
             '📌 학생 번호를 선택하세요.': '학번',
@@ -219,14 +216,45 @@ def get_sheet_data(service, spreadsheet_id, range_name):
             '📋 💭 오늘 수업에서 스스로 잘한 점이나 아쉬운 점을 한 문장으로 적어 보세요.': '자기 평가'
         }
         
+        # 헤더 행 가져오기
+        headers = values[0]
+        
+        # 실제 데이터 행 가져오기
+        data = values[1:]
+        
+        # 데이터프레임 생성
+        df = pd.DataFrame(data)
+        
+        # 컬럼 수가 맞지 않는 경우 처리
+        if len(headers) > len(df.columns):
+            # 부족한 컬럼 추가
+            for i in range(len(df.columns), len(headers)):
+                df[i] = None
+        elif len(headers) < len(df.columns):
+            # 초과 컬럼 제거
+            df = df.iloc[:, :len(headers)]
+        
+        # 컬럼명 설정
+        df.columns = headers
+        
+        # 컬럼명 매핑
+        mapped_columns = {}
+        for orig_col in df.columns:
+            if orig_col in survey_columns:
+                mapped_columns[orig_col] = survey_columns[orig_col]
+            else:
+                # 매핑되지 않은 컬럼은 원래 이름 유지
+                mapped_columns[orig_col] = orig_col
+        
         # 컬럼명 변경
-        df = df.rename(columns=survey_columns)
+        df = df.rename(columns=mapped_columns)
         
         # 숫자형 데이터 변환
         numeric_columns = ['수업 기대도', '긴장도', '재미 예상도', '자신감', '집중도', 
                          '즐거움', '자신감 변화', '재미 변화', '긴장도 변화', '이해도']
         for col in numeric_columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
         
         return df
     except Exception as e:
